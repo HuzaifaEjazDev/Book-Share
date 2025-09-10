@@ -1,0 +1,59 @@
+# Flutter and Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+
+# Secret environment files
+.env
+.env.*
+lib/firebase_options.dart
+
+# iOS
+ios/Flutter/
+ios/Pods/
+ios/.symlinks/
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+*.xcuserstate
+
+# Android
+android/.gradle/
+android/captures/
+*.apk
+*.ap_
+*.aar
+*.iml
+.gradle/
+
+# macOS
+macos/Flutter/
+macos/Pods/
+macos/.symlinks/
+
+# Linux
+linux/Flutter/
+linux/ephemeral/
+
+# Windows
+windows/Flutter/
+windows/ephemeral/
+
+# Web
+web/.dart_tool/
+web/build/
+
+# VS Code and IntelliJ
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Others
+*.swp
+.DS_Store
+*.lock

@@ -1,0 +1,287 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:book_share/main_navigation.dart';
+import 'user model.dart';
+
+
+class AddItemPage extends StatefulWidget {
+  final Userss? entry;
+  const AddItemPage({super.key,required this.entry});
+
+  @override
+  State<AddItemPage> createState() => _AddItemPageState();
+}
+
+class _AddItemPageState extends State<AddItemPage> {
+  final _database = FirebaseDatabase.instance.ref();
+  final  _picker = ImagePicker();
+  final _formKey = GlobalKey<FormState>();
+
+  XFile? _image;
+  String? _base64Image;
+  Uint8List? _imageBytes;
+  String? selectedCategory;
+  String? selectedCondtion;
+
+
+
+  final itemName = TextEditingController();
+  final descripton = TextEditingController();
+  final category = TextEditingController();
+  final condition = TextEditingController();
+  final city = TextEditingController();
+
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _image = picked);
+      final bytes = await picked.readAsBytes();
+      _base64Image = base64Encode(bytes);
+    }
+  }
+
+  void _saveToDatabase() async {
+    if (!_validateAndSave()) return;
+    final String uid = FirebaseAuth.instance.currentUser!.uid;
+    final String productKey = widget.entry?.pid ?? _database.child('products').push().key!;
+
+
+    if(widget.entry!=null){
+      try {
+        final user = Userss(
+          userId: uid,
+          pid: productKey,
+          itemname: itemName.text,
+          descripton: descripton.text,
+          category: selectedCategory ?? category.text,
+          condition: selectedCondtion ?? condition.text,
+          city: city.text,
+          image: _base64Image ?? widget.entry!.image,
+        );
+        await _database.child('products').child(productKey).set(user.toMap());
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data Updated')));
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update')));
+      }
+    } else {
+      try {
+        final user = Userss(
+          userId: uid,
+          pid: productKey,
+          itemname: itemName.text,
+          descripton: descripton.text,
+          category: selectedCategory!,
+          condition: selectedCondtion!,
+          city: city.text,
+          image: _base64Image ?? "",
+        );
+
+        await _database.child('products').child(productKey).set(user.toMap());
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Product saved successfully!")),
+        );
+        Future.delayed(Duration(milliseconds: 300), () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => MainNavigation()),
+            );
+          }
+        });
+
+      } catch (e) {
+        print("Error saving product: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to save product.")),
+        );
+      }
+    }
+  }
+
+  bool _validateAndSave() {
+    if (itemName.text.trim().isEmpty || descripton.text.trim().isEmpty || city.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all required fields')));
+      return false;
+    }
+    if (widget.entry == null) {
+      if (selectedCategory == null || selectedCondtion == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select category and condition')));
+        return false;
+      }
+      if (_base64Image == null || _base64Image!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add an image')));
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  void initState() {
+    if(widget.entry!=null){
+      final item = widget.entry!;
+      itemName.text = item.itemname;
+      descripton.text = item.descripton;
+      category.text = item.category;
+      condition.text = item.condition;
+      city.text = item.city;
+      if (item.image.isNotEmpty) {
+        try {
+          _base64Image = item.image;
+          _imageBytes = base64Decode(item.image);
+        } catch (e) {
+          print("Failed to decode image: $e");
+        }
+      }
+
+    }
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Add Item",style: TextStyle(color: Colors.white),),
+          backgroundColor: Colors.teal, centerTitle: true),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: _pickImage,
+              child: Container(
+                height: 150,
+
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(10),
+
+                ),
+                child: Center(
+                  child: _image != null
+                      ? kIsWeb
+                      ? Image.network(_image!.path)
+                      : Image.file(File(_image!.path))
+                      : _imageBytes != null
+                      ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+                      : const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.camera_alt, size: 30),
+                      Text("Tap to add image"),
+                    ],
+                  ),
+                ),
+
+              ),
+            ),
+            SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: itemName,
+                decoration: InputDecoration(
+                  labelText: "Items Name",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 120,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: TextField(
+                  maxLines: 100,
+                  minLines: null,
+                  controller: descripton,
+                  decoration: InputDecoration(
+                    labelText: "Description",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: DropdownButtonFormField<String>(
+                value: selectedCategory ?? (widget.entry != null ? widget.entry!.category : null),
+                decoration: InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                items: ['English', 'Poetry', 'Novel'].map((String category) {
+                  return DropdownMenuItem<String>(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedCategory = newValue!;
+                  });
+                },
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: DropdownButtonFormField<String>(
+                value: selectedCondtion ?? (widget.entry != null ? widget.entry!.condition : null),
+                decoration: InputDecoration(
+                  labelText: 'Condition',
+                  hintText: 'rate out o 10',
+
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                items: ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map((String condition) {
+                  return DropdownMenuItem<String>(
+                    value: condition,
+                    child: Text(condition),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedCondtion = newValue!;
+                  });
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextField(
+                controller: city,
+                decoration: InputDecoration(
+                  labelText: "location",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _saveToDatabase,
+
+        label: const Text("Save",style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold) ,),
+        icon: const Icon(Icons.save_outlined,color: Colors.white,),
+        backgroundColor: Colors.teal,
+      ),
+
+    );
+  }
+
+}
+//s
